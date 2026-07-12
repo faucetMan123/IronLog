@@ -1,0 +1,27 @@
+node_modules/
+dist/
+dist-android/
+test-results/
+playwright-report/
+blob-report/
+*.local
+.DS_Store
+
+# Android build outputs / local SDK config (kept once android/ is generated in Phase 6)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/release/
+
+# Capacitor
+.capacitor/
+
+# Keystores and secrets — never committed
+*.keystore
+*.jks
+android/key.properties
+.env
+.env.*
+!.env.example

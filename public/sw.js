@@ -1,4 +1,4 @@
-const CACHE_NAME = 'el-supremo-v16-exercise-names';
+const CACHE_NAME = 'el-supremo-v16-ts-vite';
 const CORE_ASSETS = ['./', './index.html', './manifest.json'];
 const OPTIONAL_ASSETS = ['./icon-512.png'];
 

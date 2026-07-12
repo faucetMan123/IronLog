@@ -1,0 +1,59 @@
+import type { Template } from "../app/types";
+
+export const DEFAULT_TEMPLATES: Template[] = [
+  {
+    id: "t1", name: "Push Heavy", exercises: [
+      { id: "e1", name: "Bench Press", sets: 4, reps: "5–8" },
+      { id: "e2", name: "Incline Dumbbell Press", sets: 3, reps: "6–10" },
+      { id: "e3", name: "Dumbbell Shoulder Press", sets: 3, reps: "6–10" },
+      { id: "e4", name: "Lateral Raise", sets: 4, reps: "12–20" },
+      { id: "e5", name: "Triceps Pushdown", sets: 3, reps: "10–12" },
+    ],
+  },
+  {
+    id: "t2", name: "Pull Heavy", exercises: [
+      { id: "e6", name: "Pull-Up", sets: 4, reps: "5–8" },
+      { id: "e7", name: "Lat Pulldown", sets: 3, reps: "6–10" },
+      { id: "e8", name: "Seated Cable Row", sets: 4, reps: "6–10" },
+      { id: "e9", name: "Rear Delt Fly", sets: 3, reps: "12–20" },
+      { id: "e10", name: "EZ-Bar Curl", sets: 3, reps: "8–12" },
+    ],
+  },
+  {
+    id: "t3", name: "Legs Heavy", exercises: [
+      { id: "e11", name: "Squat", sets: 4, reps: "5–8" },
+      { id: "e12", name: "Romanian Deadlift", sets: 3, reps: "6–10" },
+      { id: "e13", name: "Bulgarian Split Squat", sets: 3, reps: "8–12" },
+      { id: "e14", name: "Leg Curl", sets: 3, reps: "10–15" },
+      { id: "e15", name: "Calf Raise", sets: 4, reps: "10–15" },
+    ],
+  },
+  {
+    id: "t4", name: "Push Volume", exercises: [
+      { id: "e16", name: "Bench Press", sets: 3, reps: "8–12" },
+      { id: "e17", name: "Incline Dumbbell Press", sets: 3, reps: "10–12" },
+      { id: "e18", name: "Lateral Raise", sets: 4, reps: "15–20" },
+      { id: "e19", name: "Cable Chest Fly", sets: 3, reps: "12–20" },
+      { id: "e20", name: "Overhead Triceps Extension", sets: 3, reps: "10–15" },
+      { id: "e21", name: "Triceps Pushdown", sets: 2, reps: "12–20" },
+    ],
+  },
+  {
+    id: "t5", name: "Pull Volume", exercises: [
+      { id: "e22", name: "Lat Pulldown", sets: 4, reps: "10–15" },
+      { id: "e23", name: "Seated Cable Row", sets: 3, reps: "10–15" },
+      { id: "e24", name: "Face Pull", sets: 3, reps: "15–25" },
+      { id: "e25", name: "EZ-Bar Curl", sets: 3, reps: "12–15" },
+      { id: "e26", name: "Rope Hammer Curl", sets: 3, reps: "12–15" },
+    ],
+  },
+  {
+    id: "t6", name: "Legs Volume", exercises: [
+      { id: "e27", name: "Squat", sets: 3, reps: "8–12" },
+      { id: "e28", name: "Romanian Deadlift", sets: 3, reps: "10–12" },
+      { id: "e29", name: "Leg Extension", sets: 3, reps: "12–20" },
+      { id: "e30", name: "Leg Curl", sets: 3, reps: "12–20" },
+      { id: "e31", name: "Calf Raise", sets: 4, reps: "12–20" },
+    ],
+  },
+];
