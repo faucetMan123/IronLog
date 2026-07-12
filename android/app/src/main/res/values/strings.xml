@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">El Supremo</string>
+    <string name="title_activity_main">El Supremo</string>
+    <string name="package_name">com.elsupremo.workoutlog</string>
+    <string name="custom_url_scheme">com.elsupremo.workoutlog</string>
+</resources>

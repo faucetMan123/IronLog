@@ -6,6 +6,7 @@ import { runV15Migration } from "../migrations/runMigration";
 import { getDb } from "../database/db";
 import { isOnboardingCompleted } from "../database/settingsRepo";
 import { hasAnyPlans } from "../database/plansRepo";
+import { initHardwareBackButton, initStatusBar, hideSplashScreen } from "./native";
 import type { TabId } from "./types";
 
 function initBackButton(): void {
@@ -76,6 +77,8 @@ window.__elSupremoDebug = { getDb };
 async function boot(): Promise<void> {
   initModal();
   initBackButton();
+  initHardwareBackButton();
+  void initStatusBar();
   // No screen has rendered yet, so the recovery callback has nothing to
   // refresh — initRouter()'s first render below already reflects it.
   await initDataProtection(() => {});
@@ -83,6 +86,7 @@ async function boot(): Promise<void> {
   const initialTab = await determineInitialTab();
   initRouter(initialTab);
   initServiceWorker();
+  await hideSplashScreen();
 }
 
 void boot();

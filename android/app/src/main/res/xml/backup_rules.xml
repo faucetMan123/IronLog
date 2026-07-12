@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 (API < 31) full-backup rules. As with
+  data_extraction_rules.xml, android:allowBackup="false" already disables
+  backup entirely; this empty ruleset (no <include> entries) is explicit
+  defense-in-depth documentation that nothing is eligible for backup.
+-->
+<full-backup-content>
+</full-backup-content>

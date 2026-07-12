@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31+) backup/transfer rules.
+
+  android:allowBackup="false" in AndroidManifest.xml already disables both
+  Auto Backup to the cloud and device-to-device transfer entirely, which is
+  the primary control. This file is kept as explicit, defense-in-depth
+  documentation of intent — if allowBackup is ever changed, these empty
+  <cloud-backup>/<device-transfer> rulesets (no <include> entries) mean
+  nothing is captured by default either way. Workout data belongs only in
+  the app's own exported/imported JSON backup file (see docs/PRIVACY.md).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+    </cloud-backup>
+    <device-transfer>
+    </device-transfer>
+</data-extraction-rules>
