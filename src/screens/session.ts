@@ -59,7 +59,11 @@ export function mount(container: HTMLElement): void {
     h += `<div class="card" style="margin-bottom:13px" data-exercise="${ei}">
       <div class="exhead">
         <span class="exname">${esc(e.exerciseName)}${e.target ? `<span class="extarget mono">${esc(e.target)}</span>` : ""}</span>
-        <div class="plates">${plates}</div></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="plates">${plates}</div>
+          <button class="iconbtn" aria-label="Move exercise up" data-action="moveExUp" data-ei="${ei}" style="width:28px;height:28px">↑</button>
+          <button class="iconbtn" aria-label="Move exercise down" data-action="moveExDown" data-ei="${ei}" style="width:28px;height:28px">↓</button>
+        </div></div>
       ${suggestion.kind !== "none" ? `<div class="pr-note" style="margin:0 0 10px">${esc(suggestion.message)}</div>` : ""}
       <div class="setrow sethead"><span>#</span><span>Weight (kg)</span><span>Reps</span><span></span></div>`;
     e.sets.forEach((s, si) => {
@@ -169,6 +173,29 @@ export function mount(container: HTMLElement): void {
       s.exercises[ei].dayExerciseId = null;
       s.exercises[ei].minReps = null;
       s.exercises[ei].maxReps = null;
+      scheduleSave();
+      mount(container);
+    });
+  });
+
+  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExUp']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = getSession();
+      if (!s) return;
+      const ei = Number(btn.dataset.ei);
+      if (ei <= 0) return;
+      [s.exercises[ei - 1], s.exercises[ei]] = [s.exercises[ei], s.exercises[ei - 1]];
+      scheduleSave();
+      mount(container);
+    });
+  });
+  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExDown']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = getSession();
+      if (!s) return;
+      const ei = Number(btn.dataset.ei);
+      if (ei >= s.exercises.length - 1) return;
+      [s.exercises[ei], s.exercises[ei + 1]] = [s.exercises[ei + 1], s.exercises[ei]];
       scheduleSave();
       mount(container);
     });

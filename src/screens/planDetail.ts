@@ -14,6 +14,7 @@ import {
   addDayExercise,
   updateDayExercise,
   removeDayExercise,
+  reorderDayExercises,
   type DayExerciseRecord,
 } from "../database/plansRepo";
 
@@ -44,6 +45,7 @@ export async function mount(container: HTMLElement, planId: string | undefined):
   let h = `<div style="margin-top:4px">
     <input value="${esc(plan.name)}" id="planNameInput" style="margin-bottom:14px;font-weight:700" placeholder="Plan name">`;
 
+  let openDayExercises: DayExerciseRecord[] = [];
   for (const day of days) {
     const open = openDayId === day.id;
     h += `<div class="card" style="padding:0;margin-bottom:10px;overflow:hidden">
@@ -53,6 +55,7 @@ export async function mount(container: HTMLElement, planId: string | undefined):
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="transition:transform 0.2s;transform:rotate(${open ? 90 : 0}deg);color:var(--text-faint)"><path d="M9 5l7 7-7 7"/></svg></button>`;
     if (open) {
       const exercises = await listDayExercises(day.id);
+      openDayExercises = exercises;
       h += `<div style="padding:0 15px 15px">
         <input value="${esc(day.name)}" data-dayname="${day.id}" style="margin-bottom:10px" placeholder="Day name">
         <div class="flexrow" style="margin-bottom:12px">
@@ -62,7 +65,7 @@ export async function mount(container: HTMLElement, planId: string | undefined):
           <button class="btn btn-small btn-danger" data-day-del="${day.id}">Delete</button>
         </div>`;
       if (exercises.length) {
-        h += `<div style="display:grid;grid-template-columns:1fr 44px 62px 34px;gap:6px;margin-bottom:6px" class="sethead"><span>Exercise</span><span>Sets</span><span>Reps</span><span></span></div>`;
+        h += `<div style="display:grid;grid-template-columns:1fr 44px 62px auto;gap:6px;margin-bottom:6px" class="sethead"><span>Exercise</span><span>Sets</span><span>Reps</span><span></span></div>`;
         for (const de of exercises) {
           h += renderExerciseRow(de);
         }
@@ -122,19 +125,23 @@ export async function mount(container: HTMLElement, planId: string | undefined):
     rerender();
   });
 
-  wireExerciseRows(container, rerender);
+  wireExerciseRows(container, openDayExercises, rerender);
 }
 
 function renderExerciseRow(de: DayExerciseRecord): string {
-  return `<div style="display:grid;grid-template-columns:1fr 44px 62px 34px;gap:6px;margin-bottom:7px;align-items:center" data-ex-row="${de.id}">
+  return `<div style="display:grid;grid-template-columns:1fr 44px 62px auto;gap:6px;margin-bottom:7px;align-items:center" data-ex-row="${de.id}">
     <span style="font-size:13px;font-weight:600">${esc(de.exerciseName)}</span>
     <input class="mono" type="number" inputmode="numeric" value="${de.targetSets ?? ""}" data-ex-field="targetSets" data-ex-id="${de.id}">
     <input class="mono" placeholder="8-12" value="${de.minReps && de.maxReps ? `${de.minReps}-${de.maxReps}` : ""}" data-ex-field="repRange" data-ex-id="${de.id}">
-    <button class="iconbtn" aria-label="Remove exercise" data-rm-ex="${de.id}">✕</button>
+    <span style="display:flex;gap:2px">
+      <button class="iconbtn" aria-label="Move exercise up" data-ex-up="${de.id}" style="width:28px;height:28px">↑</button>
+      <button class="iconbtn" aria-label="Move exercise down" data-ex-down="${de.id}" style="width:28px;height:28px">↓</button>
+      <button class="iconbtn" aria-label="Remove exercise" data-rm-ex="${de.id}" style="width:28px;height:28px">✕</button>
+    </span>
   </div>`;
 }
 
-function wireExerciseRows(container: HTMLElement, rerender: () => void): void {
+function wireExerciseRows(container: HTMLElement, exercises: DayExerciseRecord[], rerender: () => void): void {
   container.querySelectorAll<HTMLInputElement>("[data-ex-field='targetSets']").forEach((input) => {
     input.addEventListener("change", () => void updateDayExercise(input.dataset.exId!, { targetSets: parseInt(input.value) || null }));
   });
@@ -143,6 +150,12 @@ function wireExerciseRows(container: HTMLElement, rerender: () => void): void {
       const m = /^(\d+)\s*-\s*(\d+)$/.exec(input.value.trim());
       void updateDayExercise(input.dataset.exId!, { minReps: m ? parseInt(m[1]) : null, maxReps: m ? parseInt(m[2]) : null });
     });
+  });
+  container.querySelectorAll<HTMLButtonElement>("[data-ex-up]").forEach((btn) => {
+    btn.addEventListener("click", () => void move(exercises, btn.dataset.exUp!, -1, reorderDayExercises).then(rerender));
+  });
+  container.querySelectorAll<HTMLButtonElement>("[data-ex-down]").forEach((btn) => {
+    btn.addEventListener("click", () => void move(exercises, btn.dataset.exDown!, 1, reorderDayExercises).then(rerender));
   });
   container.querySelectorAll<HTMLButtonElement>("[data-rm-ex]").forEach((btn) => {
     btn.addEventListener("click", () => void removeDayExercise(btn.dataset.rmEx!).then(rerender));
