@@ -18,6 +18,7 @@ export interface DraftExercise {
   minReps?: number | null;
   maxReps?: number | null;
   weightIncrement?: number | null;
+  restSeconds?: number | null;
 }
 export interface WorkoutDraft {
   id: string;

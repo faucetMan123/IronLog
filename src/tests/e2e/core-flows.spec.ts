@@ -170,3 +170,25 @@ test("privacy centre erase-all-data returns to onboarding", async ({ page }) => 
   await page.locator("[data-modal-submit]").click();
   await expect(page.locator("#headerTitle")).toHaveText("Welcome");
 });
+
+test("RIR field and rest timer are hidden by default, and appear once enabled in Plans", async ({ page }) => {
+  await pickStarterPlan(page, "Full Body (3x/week)");
+  await page.getByRole("button", { name: /Start Workout/i }).click();
+  await page.locator(".tplcard").first().click();
+  await expect(page.locator(".setrow.sethead").first()).not.toContainText("RIR");
+  await expect(page.locator("[data-action='startRest']")).toHaveCount(0);
+  // Leaving an in-progress session via back navigation asks for confirmation
+  // (the draft is kept, not discarded, so "Resume Workout" works below).
+  await page.locator("#backBtn").click();
+  await page.getByRole("button", { name: "Leave" }).click();
+
+  await page.locator("[data-nav='plans']").click();
+  await expect(page.locator("#headerTitle")).toHaveText("Plans");
+  await page.locator("#rirToggle").click();
+  await page.locator("#restToggle").click();
+
+  await page.locator("[data-nav='home']").click();
+  await page.getByRole("button", { name: /Resume Workout/i }).click();
+  await expect(page.locator(".setrow.sethead").first()).toContainText("RIR");
+  await expect(page.locator("[data-action='startRest']").first()).toBeVisible();
+});

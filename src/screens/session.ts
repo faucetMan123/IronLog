@@ -5,10 +5,17 @@ import { pickExercise } from "../components/exercisePicker";
 import { go } from "../app/router";
 import { saveDraft, finishSession, clearDraft, type DraftSet } from "../database/sessionsRepo";
 import { suggestProgression } from "../workouts/progression";
+import { isRirEnabled, isRestTimerEnabled } from "../database/settingsRepo";
 
 let elapsedTimer: ReturnType<typeof setInterval> | undefined;
+let restTimer: ReturnType<typeof setInterval> | undefined;
+let restTimerExerciseIndex: number | null = null;
+let restTimerRemaining = 0;
 let finishing = false;
 let saveDebounce: ReturnType<typeof setTimeout> | undefined;
+
+let rirEnabled = false;
+let restTimerFeatureEnabled = false;
 
 function setDone(e: { sets: DraftSet[] }): number {
   return e.sets.filter((s) => String(s.weight).trim() !== "" && String(s.reps).trim() !== "").length;
@@ -38,7 +45,15 @@ function formatElapsed(startedAt: string): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function mount(container: HTMLElement): void {
+// Fetched fresh on every navigation TO this screen (not on every keystroke
+// re-render — those call renderSync() directly), so a preference toggled
+// in Plans takes effect the next time a workout is started.
+export async function mount(container: HTMLElement): Promise<void> {
+  [rirEnabled, restTimerFeatureEnabled] = await Promise.all([isRirEnabled(), isRestTimerEnabled()]);
+  renderSync(container);
+}
+
+function renderSync(container: HTMLElement): void {
   clearInterval(elapsedTimer);
   finishing = false;
   const session = getSession();
@@ -65,21 +80,27 @@ export function mount(container: HTMLElement): void {
           <button class="iconbtn" aria-label="Move exercise down" data-action="moveExDown" data-ei="${ei}" style="width:28px;height:28px">↓</button>
         </div></div>
       ${suggestion.kind !== "none" ? `<div class="pr-note" style="margin:0 0 10px">${esc(suggestion.message)}</div>` : ""}
-      <div class="setrow sethead"><span>#</span><span>Weight (kg)</span><span>Reps</span><span></span></div>`;
+      <div class="setrow sethead ${rirEnabled ? "setrow-rir" : ""}"><span>#</span><span>Weight (kg)</span><span>Reps</span>${rirEnabled ? "<span>RIR</span>" : ""}<span></span></div>`;
     e.sets.forEach((s, si) => {
-      h += `<div class="setrow">
+      h += `<div class="setrow ${rirEnabled ? "setrow-rir" : ""}">
         <span class="mono dimtext" style="text-align:center">${si + 1}</span>
         <input class="mono" type="number" inputmode="decimal" placeholder="0" value="${esc(s.weight)}"
           data-field="weight" data-ei="${ei}" data-si="${si}">
         <input class="mono" type="number" inputmode="numeric" placeholder="0" value="${esc(s.reps)}"
           data-field="reps" data-ei="${ei}" data-si="${si}">
+        ${rirEnabled ? `<input class="mono" type="number" inputmode="numeric" placeholder="—" value="${esc(s.rir ?? "")}" data-field="rir" data-ei="${ei}" data-si="${si}">` : ""}
         <button class="iconbtn" aria-label="Remove set" data-action="rmSet" data-ei="${ei}" data-si="${si}">✕</button></div>`;
     });
     h += `<div class="flexrow" style="margin-top:7px">
         <button class="btn btn-small" data-action="addSet" data-ei="${ei}">+ Add set</button>
         <button class="btn btn-small btn-ghost" data-action="substitute" data-ei="${ei}">Substitute</button>
-      </div>
-      <textarea placeholder="Notes for this exercise (optional)" data-action="exNotes" data-ei="${ei}" style="margin-top:8px;min-height:40px;font-size:13px">${esc(e.notes)}</textarea>
+      </div>`;
+    if (restTimerFeatureEnabled) {
+      const isActive = restTimerExerciseIndex === ei;
+      h += `<button class="btn btn-ghost btn-small" style="margin-top:7px;width:100%" data-action="startRest" data-ei="${ei}">
+        ${isActive ? `Resting… ${restTimerRemaining}s` : `Start rest (${e.restSeconds ?? 90}s)`}</button>`;
+    }
+    h += `<textarea placeholder="Notes for this exercise (optional)" data-action="exNotes" data-ei="${ei}" style="margin-top:8px;min-height:40px;font-size:13px">${esc(e.notes)}</textarea>
     </div>`;
   });
 
@@ -105,7 +126,7 @@ export function mount(container: HTMLElement): void {
     input.addEventListener("input", () => {
       const ei = Number(input.dataset.ei);
       const si = Number(input.dataset.si);
-      const field = input.dataset.field as "weight" | "reps";
+      const field = input.dataset.field as "weight" | "reps" | "rir";
       const s = getSession();
       if (!s) return;
       s.exercises[ei].sets[si][field] = input.value;
@@ -144,7 +165,7 @@ export function mount(container: HTMLElement): void {
       sets.splice(si, 1);
       if (!sets.length) sets.push({ weight: "", reps: "" });
       scheduleSave();
-      mount(container);
+      renderSync(container);
     });
   });
 
@@ -157,7 +178,30 @@ export function mount(container: HTMLElement): void {
       const last = sets[sets.length - 1] || { weight: "", reps: "" };
       sets.push({ weight: last.weight, reps: last.reps });
       scheduleSave();
-      mount(container);
+      renderSync(container);
+    });
+  });
+
+  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExUp']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = getSession();
+      if (!s) return;
+      const ei = Number(btn.dataset.ei);
+      if (ei <= 0) return;
+      [s.exercises[ei - 1], s.exercises[ei]] = [s.exercises[ei], s.exercises[ei - 1]];
+      scheduleSave();
+      renderSync(container);
+    });
+  });
+  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExDown']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = getSession();
+      if (!s) return;
+      const ei = Number(btn.dataset.ei);
+      if (ei >= s.exercises.length - 1) return;
+      [s.exercises[ei], s.exercises[ei + 1]] = [s.exercises[ei + 1], s.exercises[ei]];
+      scheduleSave();
+      renderSync(container);
     });
   });
 
@@ -174,30 +218,31 @@ export function mount(container: HTMLElement): void {
       s.exercises[ei].minReps = null;
       s.exercises[ei].maxReps = null;
       scheduleSave();
-      mount(container);
+      renderSync(container);
     });
   });
 
-  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExUp']").forEach((btn) => {
+  container.querySelectorAll<HTMLButtonElement>("[data-action='startRest']").forEach((btn) => {
     btn.addEventListener("click", () => {
       const s = getSession();
       if (!s) return;
       const ei = Number(btn.dataset.ei);
-      if (ei <= 0) return;
-      [s.exercises[ei - 1], s.exercises[ei]] = [s.exercises[ei], s.exercises[ei - 1]];
-      scheduleSave();
-      mount(container);
-    });
-  });
-  container.querySelectorAll<HTMLButtonElement>("[data-action='moveExDown']").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const s = getSession();
-      if (!s) return;
-      const ei = Number(btn.dataset.ei);
-      if (ei >= s.exercises.length - 1) return;
-      [s.exercises[ei], s.exercises[ei + 1]] = [s.exercises[ei + 1], s.exercises[ei]];
-      scheduleSave();
-      mount(container);
+      clearInterval(restTimer);
+      restTimerExerciseIndex = ei;
+      restTimerRemaining = s.exercises[ei].restSeconds ?? 90;
+      btn.textContent = `Resting… ${restTimerRemaining}s`;
+      restTimer = setInterval(() => {
+        restTimerRemaining -= 1;
+        if (restTimerRemaining <= 0) {
+          clearInterval(restTimer);
+          restTimerExerciseIndex = null;
+          toast("Rest complete");
+          renderSync(container);
+          return;
+        }
+        const liveBtn = container.querySelector<HTMLButtonElement>(`[data-action='startRest'][data-ei="${ei}"]`);
+        if (liveBtn) liveBtn.textContent = `Resting… ${restTimerRemaining}s`;
+      }, 1000);
     });
   });
 
@@ -208,13 +253,14 @@ export function mount(container: HTMLElement): void {
     if (!s) return;
     s.exercises.push({ exerciseId: picked.id, exerciseName: picked.displayName, dayExerciseId: null, target: "", notes: "", sets: [{ weight: "", reps: "" }] });
     scheduleSave();
-    mount(container);
+    renderSync(container);
   });
 
   container.querySelector("[data-action='discard']")?.addEventListener("click", async () => {
     const ok = await modalConfirm("Discard workout?", "Nothing from this session will be saved.", "Discard", true);
     if (ok) {
       cancelScheduledSave();
+      clearInterval(restTimer);
       await clearDraft();
       setSession(null);
       clearInterval(elapsedTimer);
@@ -244,6 +290,8 @@ export function mount(container: HTMLElement): void {
     const nm = s.templateName;
     setSession(null);
     clearInterval(elapsedTimer);
+    clearInterval(restTimer);
+    restTimerExerciseIndex = null;
     go("home");
     toast(nm + " saved");
   });

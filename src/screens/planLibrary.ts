@@ -1,6 +1,7 @@
 import { esc, toast } from "../app/format";
 import { modalConfirm, modalPrompt } from "../components/modal";
 import { listPlans, createPlan, renamePlan, setPlanArchived, deletePlan, duplicatePlan, listWorkoutDays, createWorkoutDay, type PlanRecord } from "../database/plansRepo";
+import { isRirEnabled, setRirEnabled, isRestTimerEnabled, setRestTimerEnabled } from "../database/settingsRepo";
 import { go } from "../app/router";
 
 async function handleCreate(): Promise<void> {
@@ -44,9 +45,25 @@ async function handleDelete(plan: PlanRecord, rerender: () => void): Promise<voi
 
 export async function mount(container: HTMLElement): Promise<void> {
   const rerender = () => void mount(container);
-  const [active, archived] = await Promise.all([listPlans(false), listPlans(true).then((all) => all.filter((p) => p.archived))]);
+  const [active, archived, rir, restTimerOn] = await Promise.all([
+    listPlans(false),
+    listPlans(true).then((all) => all.filter((p) => p.archived)),
+    isRirEnabled(),
+    isRestTimerEnabled(),
+  ]);
 
-  let h = '<div style="margin-top:8px">';
+  let h = `<div class="settings-card card" style="margin-top:8px;margin-bottom:14px">
+    <div class="settings-title">Workout preferences</div>
+    <div class="dimtext" style="margin-bottom:10px">Both are off by default and only affect what's shown while logging a workout.</div>
+    <div class="togglerow" style="margin-bottom:8px">
+      <button class="toggle ${rir ? "active" : ""}" id="rirToggle">RIR field</button>
+      <button class="toggle ${!rir ? "active" : ""}" id="rirToggleOff">Hide RIR</button>
+    </div>
+    <div class="togglerow">
+      <button class="toggle ${restTimerOn ? "active" : ""}" id="restToggle">Rest timer</button>
+      <button class="toggle ${!restTimerOn ? "active" : ""}" id="restToggleOff">Hide rest timer</button>
+    </div>
+  </div>`;
   if (!active.length && !archived.length) {
     h += '<div class="empty">No plans yet. Create one, or use the Mentor / a starter plan from onboarding again via Import in Data.</div>';
   }
@@ -76,8 +93,13 @@ export async function mount(container: HTMLElement): Promise<void> {
       </div>`;
     }
   }
-  h += `<button class="btn btn-primary" style="margin-top:8px" id="createPlanBtn">+ Create Plan</button></div>`;
+  h += `<button class="btn btn-primary" style="margin-top:8px" id="createPlanBtn">+ Create Plan</button>`;
   container.innerHTML = h;
+
+  container.querySelector("#rirToggle")?.addEventListener("click", () => void setRirEnabled(true).then(rerender));
+  container.querySelector("#rirToggleOff")?.addEventListener("click", () => void setRirEnabled(false).then(rerender));
+  container.querySelector("#restToggle")?.addEventListener("click", () => void setRestTimerEnabled(true).then(rerender));
+  container.querySelector("#restToggleOff")?.addEventListener("click", () => void setRestTimerEnabled(false).then(rerender));
 
   const allPlans = [...active, ...archived];
   container.querySelectorAll<HTMLButtonElement>("[data-open]").forEach((btn) => btn.addEventListener("click", () => go("planDetail", { planId: btn.dataset.open! })));

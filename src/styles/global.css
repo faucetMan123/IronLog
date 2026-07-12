@@ -101,6 +101,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 /* ---------- session ---------- */
 .setrow{display:grid; grid-template-columns:26px 1fr 1fr 38px; gap:8px; margin-bottom:8px; align-items:center;}
+.setrow-rir{grid-template-columns:22px 1fr 1fr 52px 34px;}
 .sethead{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em; font-weight:800; margin-bottom:2px;}
 .exhead{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;}
 .exname{font-weight:800; font-size:15px; line-height:1.25;}

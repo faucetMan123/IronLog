@@ -29,6 +29,7 @@ async function startSessionFromDay(day: WorkoutDayRecord, plan: PlanRecord): Pro
         minReps: de.minReps,
         maxReps: de.maxReps,
         weightIncrement: de.weightIncrement,
+        restSeconds: de.restSeconds,
       };
     })
   );

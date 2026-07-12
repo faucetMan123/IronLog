@@ -146,7 +146,7 @@ export async function render(): Promise<void> {
 
   if (tab === "home") await home.mount(content);
   else if (tab === "startWorkout") await startWorkout.mount(content);
-  else if (tab === "session") session.mount(content);
+  else if (tab === "session") await session.mount(content);
   else if (tab === "sheet") await sheet.mount(content);
   else if (tab === "prs") await prs.mount(content);
   else if (tab === "charts") await chartsScreen.mount(content);

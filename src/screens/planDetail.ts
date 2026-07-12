@@ -129,15 +129,22 @@ export async function mount(container: HTMLElement, planId: string | undefined):
 }
 
 function renderExerciseRow(de: DayExerciseRecord): string {
-  return `<div style="display:grid;grid-template-columns:1fr 44px 62px auto;gap:6px;margin-bottom:7px;align-items:center" data-ex-row="${de.id}">
-    <span style="font-size:13px;font-weight:600">${esc(de.exerciseName)}</span>
-    <input class="mono" type="number" inputmode="numeric" value="${de.targetSets ?? ""}" data-ex-field="targetSets" data-ex-id="${de.id}">
-    <input class="mono" placeholder="8-12" value="${de.minReps && de.maxReps ? `${de.minReps}-${de.maxReps}` : ""}" data-ex-field="repRange" data-ex-id="${de.id}">
-    <span style="display:flex;gap:2px">
-      <button class="iconbtn" aria-label="Move exercise up" data-ex-up="${de.id}" style="width:28px;height:28px">↑</button>
-      <button class="iconbtn" aria-label="Move exercise down" data-ex-down="${de.id}" style="width:28px;height:28px">↓</button>
-      <button class="iconbtn" aria-label="Remove exercise" data-rm-ex="${de.id}" style="width:28px;height:28px">✕</button>
-    </span>
+  return `<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #14254433" data-ex-row="${de.id}">
+    <div style="display:grid;grid-template-columns:1fr 44px 62px auto;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:13px;font-weight:600">${esc(de.exerciseName)}</span>
+      <input class="mono" type="number" inputmode="numeric" value="${de.targetSets ?? ""}" data-ex-field="targetSets" data-ex-id="${de.id}">
+      <input class="mono" placeholder="8-12" value="${de.minReps && de.maxReps ? `${de.minReps}-${de.maxReps}` : ""}" data-ex-field="repRange" data-ex-id="${de.id}">
+      <span style="display:flex;gap:2px">
+        <button class="iconbtn" aria-label="Move exercise up" data-ex-up="${de.id}" style="width:28px;height:28px">↑</button>
+        <button class="iconbtn" aria-label="Move exercise down" data-ex-down="${de.id}" style="width:28px;height:28px">↓</button>
+        <button class="iconbtn" aria-label="Remove exercise" data-rm-ex="${de.id}" style="width:28px;height:28px">✕</button>
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:70px 70px 1fr;gap:6px">
+      <input class="mono" type="number" inputmode="decimal" placeholder="Rest s" value="${de.restSeconds ?? ""}" data-ex-field="restSeconds" data-ex-id="${de.id}" style="font-size:12px;padding:8px">
+      <input class="mono" type="number" inputmode="decimal" placeholder="+kg" value="${de.weightIncrement ?? ""}" data-ex-field="weightIncrement" data-ex-id="${de.id}" style="font-size:12px;padding:8px">
+      <input placeholder="Notes" value="${esc(de.notes ?? "")}" data-ex-field="notes" data-ex-id="${de.id}" style="font-size:12px;padding:8px">
+    </div>
   </div>`;
 }
 
@@ -150,6 +157,15 @@ function wireExerciseRows(container: HTMLElement, exercises: DayExerciseRecord[]
       const m = /^(\d+)\s*-\s*(\d+)$/.exec(input.value.trim());
       void updateDayExercise(input.dataset.exId!, { minReps: m ? parseInt(m[1]) : null, maxReps: m ? parseInt(m[2]) : null });
     });
+  });
+  container.querySelectorAll<HTMLInputElement>("[data-ex-field='restSeconds']").forEach((input) => {
+    input.addEventListener("change", () => void updateDayExercise(input.dataset.exId!, { restSeconds: parseInt(input.value) || null }));
+  });
+  container.querySelectorAll<HTMLInputElement>("[data-ex-field='weightIncrement']").forEach((input) => {
+    input.addEventListener("change", () => void updateDayExercise(input.dataset.exId!, { weightIncrement: parseFloat(input.value) || null }));
+  });
+  container.querySelectorAll<HTMLInputElement>("[data-ex-field='notes']").forEach((input) => {
+    input.addEventListener("change", () => void updateDayExercise(input.dataset.exId!, { notes: input.value.trim() || null }));
   });
   container.querySelectorAll<HTMLButtonElement>("[data-ex-up]").forEach((btn) => {
     btn.addEventListener("click", () => void move(exercises, btn.dataset.exUp!, -1, reorderDayExercises).then(rerender));
