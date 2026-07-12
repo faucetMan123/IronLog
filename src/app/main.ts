@@ -1,7 +1,7 @@
 import "../styles/global.css";
 import { initModal } from "../components/modal";
 import { initRouter, render } from "./router";
-import { initDataProtection } from "./store";
+import { initDataProtection, hasLegacyEvidence } from "./store";
 import { runV15Migration } from "../migrations/runMigration";
 import { getDb } from "../database/db";
 
@@ -45,7 +45,7 @@ function initServiceWorker(): void {
 // and for the Playwright integration test to observe.
 async function initSqliteMigration(): Promise<void> {
   try {
-    const outcome = await runV15Migration();
+    const outcome = await runV15Migration(await hasLegacyEvidence());
     document.body.dataset.migrationStatus = outcome.status;
     if (outcome.status === "failed") {
       console.error("v15 migration validation failed", outcome.issues);

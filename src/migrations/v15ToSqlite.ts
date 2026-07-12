@@ -239,25 +239,37 @@ function migrateWorkout(w: Workout, customExercises: Map<string, ExerciseRow>): 
   return { session, performedExercises, performedSets };
 }
 
-export function migrateV15Data(data: AppData, now: string = new Date().toISOString()): MigratedRows {
+export interface MigrateOptions {
+  /** False for a genuinely fresh install with no prior v15 usage evidence at
+   *  all (see runMigration.ts) — in that case we must NOT silently create
+   *  the "My Programme" plan + 6 default workout_days, or first-launch
+   *  onboarding would never trigger for new (especially Android) users.
+   *  Defaults to true: a returning v15 user always keeps their templates. */
+  seedDefaultProgramme?: boolean;
+}
+
+export function migrateV15Data(data: AppData, now: string = new Date().toISOString(), options: MigrateOptions = {}): MigratedRows {
+  const seedProgramme = options.seedDefaultProgramme !== false;
   const customExercises = new Map<string, ExerciseRow>();
 
-  const plan: PlanRow = {
-    id: MIGRATED_PLAN_ID,
-    name: "My Programme",
-    archived: 0,
-    sort_order: 0,
-    created_at: now,
-    updated_at: now,
-  };
-
+  const plans: PlanRow[] = [];
   const workoutDays: WorkoutDayRow[] = [];
   const dayExercises: DayExerciseRow[] = [];
-  data.templates.forEach((t, i) => {
-    const { day, dayExercises: dex } = migrateTemplate(t, i, customExercises, now);
-    workoutDays.push(day);
-    dayExercises.push(...dex);
-  });
+  if (seedProgramme) {
+    plans.push({
+      id: MIGRATED_PLAN_ID,
+      name: "My Programme",
+      archived: 0,
+      sort_order: 0,
+      created_at: now,
+      updated_at: now,
+    });
+    data.templates.forEach((t, i) => {
+      const { day, dayExercises: dex } = migrateTemplate(t, i, customExercises, now);
+      workoutDays.push(day);
+      dayExercises.push(...dex);
+    });
+  }
 
   const workoutSessions: WorkoutSessionRow[] = [];
   const performedExercises: PerformedExerciseRow[] = [];
@@ -273,7 +285,7 @@ export function migrateV15Data(data: AppData, now: string = new Date().toISOStri
 
   const appSettings: AppSettingRow[] = [{ key: "pullup_bodyweight", value: data.settings.pullupBodyweight ?? "" }];
 
-  return { exercises, plans: [plan], workoutDays, dayExercises, workoutSessions, performedExercises, performedSets, appSettings };
+  return { exercises, plans, workoutDays, dayExercises, workoutSessions, performedExercises, performedSets, appSettings };
 }
 
 export interface MigrationValidation {

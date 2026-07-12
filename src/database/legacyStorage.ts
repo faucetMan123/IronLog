@@ -38,6 +38,39 @@ export function hadLocalData(): boolean {
   }
 }
 
+// Durable, one-time-written marker for "did this device have any v15
+// evidence at the moment of the app's very first-ever boot". Needed
+// because the service worker's reload-on-first-activation (below, and see
+// initServiceWorker in app/main.ts) causes a SECOND page load shortly
+// after a genuinely fresh install's first boot — and by then that first
+// boot's own harmless startup writes (persistMirror's unconditional
+// localStorage/IndexedDB mirror) would make a live re-check see "evidence"
+// that wasn't actually there when the user first opened the app. This key
+// is written once, as early as possible in the very first boot, before
+// that first boot's own writes can taint it — every later boot (including
+// the SW-triggered reload, and every future app open) just reads the
+// cached decision instead of re-deriving an unreliable one.
+const INSTALL_EVIDENCE_KEY = "el-supremo-legacy-evidence-at-install";
+
+export function readCachedInstallEvidence(): boolean | null {
+  try {
+    const v = localStorage.getItem(INSTALL_EVIDENCE_KEY);
+    if (v === "true") return true;
+    if (v === "false") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function persistInstallEvidence(value: boolean): void {
+  try {
+    localStorage.setItem(INSTALL_EVIDENCE_KEY, value ? "true" : "false");
+  } catch {
+    /* best effort */
+  }
+}
+
 export function defaultData(): AppData {
   return {
     templates: JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),

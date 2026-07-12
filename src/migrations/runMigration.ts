@@ -56,34 +56,45 @@ export interface MigrationOutcome {
   status: "skipped" | "completed" | "failed";
   issues: string[];
   sessionsMigrated: number;
+  seededDefaultProgramme: boolean;
 }
 
-export async function runV15Migration(): Promise<MigrationOutcome> {
+/** @param hasLegacyEvidence - store.ts's `hasLegacyEvidence()`, resolved
+ *  from a read captured BEFORE this session's own startup writes. Must be
+ *  passed in already-resolved rather than recomputed here: by the time
+ *  this function runs, initDataProtection() has already called
+ *  persistMirror(), which writes both localStorage["ironlog-v1"] and a
+ *  fresh IndexedDB mirror record as side effects — a live check at this
+ *  point would always see those writes and incorrectly report "returning
+ *  user" for every fresh install, silently seeding a default programme and
+ *  skipping first-launch onboarding for new users. */
+export async function runV15Migration(hasLegacyEvidence: boolean): Promise<MigrationOutcome> {
   const db = await getDb();
 
   const already = await getSetting(db, "backup_metadata", MIGRATION_MARKER_KEY);
   if (already) {
-    return { status: "skipped", issues: [], sessionsMigrated: 0 };
+    return { status: "skipped", issues: [], sessionsMigrated: 0, seededDefaultProgramme: false };
   }
 
   const source = await pickBestLegacySource();
+  const seedDefaultProgramme = hasLegacyEvidence || source.workouts.length > 0;
 
   // Pre-migration backup, written before any row is inserted.
   await setSetting(db, "backup_metadata", PRE_MIGRATION_BACKUP_KEY, JSON.stringify(source));
   await persistWebStore();
 
-  const rows = migrateV15Data(source);
+  const rows = migrateV15Data(source, new Date().toISOString(), { seedDefaultProgramme });
   const validation = validateMigration(source, rows);
 
   await insertAllRows(db, rows);
 
   if (!validation.ok) {
     await persistWebStore();
-    return { status: "failed", issues: validation.issues, sessionsMigrated: 0 };
+    return { status: "failed", issues: validation.issues, sessionsMigrated: 0, seededDefaultProgramme: false };
   }
 
   await setSetting(db, "backup_metadata", MIGRATION_MARKER_KEY, new Date().toISOString());
   await persistWebStore();
 
-  return { status: "completed", issues: [], sessionsMigrated: rows.workoutSessions.length };
+  return { status: "completed", issues: [], sessionsMigrated: rows.workoutSessions.length, seededDefaultProgramme: seedDefaultProgramme };
 }

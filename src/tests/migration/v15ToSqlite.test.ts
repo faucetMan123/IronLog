@@ -184,3 +184,23 @@ describe("migrateV15Data — corrupted source handling", () => {
     expect(rows.workoutSessions).toHaveLength(0);
   });
 });
+
+describe("migrateV15Data — fresh-install onboarding gate", () => {
+  it("with seedDefaultProgramme:false, creates no plan/workout_day rows even though templates are present", () => {
+    const data = loadFixture("empty.json"); // has the 6 default templates, 0 workouts
+    const rows = migrateV15Data(data, "2026-07-12T00:00:00.000Z", { seedDefaultProgramme: false });
+    expect(rows.plans).toEqual([]);
+    expect(rows.workoutDays).toEqual([]);
+    expect(rows.dayExercises).toEqual([]);
+    // the exercise library itself is still seeded — it's reference data, not user data
+    expect(rows.exercises.length).toBeGreaterThan(0);
+    expect(validateMigration(data, rows).ok).toBe(true);
+  });
+
+  it("defaults to seeding the programme when the option is omitted (returning-user behavior unchanged)", () => {
+    const data = loadFixture("empty.json");
+    const rows = migrateV15Data(data, "2026-07-12T00:00:00.000Z");
+    expect(rows.plans).toHaveLength(1);
+    expect(rows.workoutDays).toHaveLength(6);
+  });
+});

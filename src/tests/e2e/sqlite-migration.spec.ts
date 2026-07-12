@@ -72,14 +72,27 @@ test("migration is idempotent across a reload — no duplicate rows", async ({ p
   expect(sessionCount).toBe(2);
 });
 
-test("a fresh install with no legacy data completes migration as a no-op", async ({ page }) => {
+test("a fresh install with no legacy data completes migration as a no-op and seeds no plan (onboarding gate)", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("body")).toHaveAttribute("data-migration-status", "completed", { timeout: 15_000 });
 
-  const sessionCount = await page.evaluate(async () => {
+  const counts = await page.evaluate(async () => {
     const db = await window.__elSupremoDebug!.getDb();
-    const res = await db.query("SELECT COUNT(*) as c FROM workout_sessions");
-    return (res.values?.[0] as { c: number }).c;
+    const sessions = await db.query("SELECT COUNT(*) as c FROM workout_sessions");
+    const plans = await db.query("SELECT COUNT(*) as c FROM plans");
+    const exercises = await db.query("SELECT COUNT(*) as c FROM exercises");
+    return {
+      sessions: (sessions.values?.[0] as { c: number }).c,
+      plans: (plans.values?.[0] as { c: number }).c,
+      exercises: (exercises.values?.[0] as { c: number }).c,
+    };
   });
-  expect(sessionCount).toBe(0);
+  expect(counts.sessions).toBe(0);
+  // No plan is auto-created for a genuinely fresh install — onboarding
+  // (Mentor / Manual / Starter plan / Import backup) is what creates the
+  // first plan, not the migration step.
+  expect(counts.plans).toBe(0);
+  // The curated exercise library is reference data, not user data — it's
+  // always seeded regardless of whether this is a fresh install.
+  expect(counts.exercises).toBeGreaterThan(0);
 });
