@@ -1,0 +1,7 @@
+{
+  "_comment": "Deliberately malformed: 'workouts' is missing entirely (v15's restoreBackup() checks Array.isArray(d.workouts) and rejects this).",
+  "templates": [
+    {"id":"t1","name":"Push Heavy","exercises":[]}
+  ],
+  "settings": {"pullupBodyweight": ""}
+}

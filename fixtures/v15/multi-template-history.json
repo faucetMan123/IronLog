@@ -1,0 +1,61 @@
+{
+  "templates": [
+    {"id":"t1","name":"Push Heavy","exercises":[
+      {"id":"e1","name":"Bench Press","sets":4,"reps":"5–8"},
+      {"id":"e5","name":"Triceps Pushdown","sets":3,"reps":"10–12"}]},
+    {"id":"t4","name":"Push Volume","exercises":[
+      {"id":"e16","name":"Bench Press","sets":3,"reps":"8–12"},
+      {"id":"e21","name":"Triceps Pushdown","sets":2,"reps":"12–20"}]},
+    {"id":"t2","name":"Pull Heavy","exercises":[
+      {"id":"e6","name":"Pull-Up","sets":4,"reps":"5–8"}]}
+  ],
+  "workouts": [
+    {
+      "id": "w1", "templateId": "t1", "templateName": "Push Heavy",
+      "date": "2026-06-01T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Bench Press","sets":[{"weight":"70","reps":"6"},{"weight":"70","reps":"5"}]},
+        {"exerciseName":"Triceps Pushdown","sets":[{"weight":"25","reps":"10"}]}
+      ]
+    },
+    {
+      "id": "w2", "templateId": "t4", "templateName": "Push Volume",
+      "date": "2026-06-04T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Bench Press","sets":[{"weight":"60","reps":"10"},{"weight":"60","reps":"10"},{"weight":"60","reps":"9"}]}
+      ]
+    },
+    {
+      "id": "w3", "templateId": "t1", "templateName": "Push Heavy",
+      "date": "2026-06-08T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Bench Press","sets":[{"weight":"72.5","reps":"6"},{"weight":"72.5","reps":"6"}]},
+        {"exerciseName":"Triceps Pushdown","sets":[{"weight":"27.5","reps":"10"}]}
+      ]
+    },
+    {
+      "id": "w4", "templateId": "t2", "templateName": "Pull Heavy",
+      "date": "2026-06-10T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Pull-Up","sets":[{"weight":"0","reps":"8"},{"weight":"0","reps":"7"},{"weight":"10","reps":"5"}]}
+      ]
+    },
+    {
+      "id": "w5", "templateId": "t1", "templateName": "Push Heavy",
+      "date": "2026-07-01T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Bench Press","sets":[{"weight":"75","reps":"5"},{"weight":"75","reps":"5"}]},
+        {"exerciseName":"Triceps Pushdown","sets":[{"weight":"27.5","reps":"12"}]}
+      ]
+    }
+  ],
+  "settings": {"pullupBodyweight": "78"},
+  "meta": {
+    "lastManualBackupAt": "2026-06-15T09:00:00.000Z",
+    "lastSnapshotAt": "2026-07-01T17:01:00.000Z",
+    "lastMirrorAt": "2026-07-01T17:01:00.000Z",
+    "persistentGranted": true,
+    "persistentCheckedAt": "2026-06-01T16:59:00.000Z",
+    "protectionStartedAt": "2026-06-01T16:59:00.000Z"
+  }
+}

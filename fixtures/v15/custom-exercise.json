@@ -1,0 +1,27 @@
+{
+  "_comment": "Farmer Carry was added mid-session via addSessionExercise() and is not in the curated library or EXERCISE_NAME_ALIASES. Migration must create a custom exercises row for it, not drop it or merge it into something else.",
+  "templates": [
+    {"id":"t2","name":"Pull Heavy","exercises":[
+      {"id":"e6","name":"Pull-Up","sets":4,"reps":"5–8"}
+    ]}
+  ],
+  "workouts": [
+    {
+      "id": "w20", "templateId": "t2", "templateName": "Pull Heavy",
+      "date": "2026-04-12T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Pull-Up","sets":[{"weight":"0","reps":"8"}]},
+        {"exerciseName":"Farmer Carry","sets":[{"weight":"32","reps":"40"}]}
+      ]
+    }
+  ],
+  "settings": {"pullupBodyweight": ""},
+  "meta": {
+    "lastManualBackupAt": "",
+    "lastSnapshotAt": "2026-04-12T17:01:00.000Z",
+    "lastMirrorAt": "2026-04-12T17:01:00.000Z",
+    "persistentGranted": true,
+    "persistentCheckedAt": "2026-04-12T16:59:00.000Z",
+    "protectionStartedAt": "2026-04-12T16:59:00.000Z"
+  }
+}

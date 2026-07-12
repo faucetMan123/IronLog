@@ -1,0 +1,38 @@
+{
+  "templates": [
+    {"id":"t1","name":"Push Heavy","exercises":[
+      {"id":"e1","name":"Bench Press","sets":4,"reps":"5–8"},
+      {"id":"e2","name":"Incline Dumbbell Press","sets":3,"reps":"6–10"},
+      {"id":"e3","name":"Dumbbell Shoulder Press","sets":3,"reps":"6–10"},
+      {"id":"e4","name":"Lateral Raise","sets":4,"reps":"12–20"},
+      {"id":"e5","name":"Triceps Pushdown","sets":3,"reps":"10–12"}]}
+  ],
+  "workouts": [
+    {
+      "id": "w1abc123",
+      "templateId": "t1",
+      "templateName": "Push Heavy",
+      "date": "2026-07-10T17:32:00.000Z",
+      "entries": [
+        {"exerciseName":"Bench Press","sets":[
+          {"weight":"80","reps":"6"},
+          {"weight":"80","reps":"6"},
+          {"weight":"77.5","reps":"7"},
+          {"weight":"75","reps":"8"}]},
+        {"exerciseName":"Incline Dumbbell Press","sets":[
+          {"weight":"30","reps":"8"},
+          {"weight":"30","reps":"7"},
+          {"weight":"27.5","reps":"9"}]}
+      ]
+    }
+  ],
+  "settings": {"pullupBodyweight": ""},
+  "meta": {
+    "lastManualBackupAt": "",
+    "lastSnapshotAt": "2026-07-10T17:33:01.000Z",
+    "lastMirrorAt": "2026-07-10T17:33:01.000Z",
+    "persistentGranted": true,
+    "persistentCheckedAt": "2026-07-10T17:30:00.000Z",
+    "protectionStartedAt": "2026-07-01T09:00:00.000Z"
+  }
+}

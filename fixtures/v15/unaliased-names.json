@@ -1,0 +1,37 @@
+{
+  "_comment": "Raw, pre-standardization names exactly as EXERCISE_NAME_ALIASES keys would match them (lowercase+trim). Migration must resolve these to the SAME exercise ids as their canonical forms, matching v15's existing case-insensitive standardizeExerciseName() behavior.",
+  "templates": [
+    {"id":"t3","name":"Legs Heavy","exercises":[
+      {"id":"e12","name":"RDL","sets":3,"reps":"6–10"}
+    ]}
+  ],
+  "workouts": [
+    {
+      "id": "w10", "templateId": "t3", "templateName": "Legs Heavy",
+      "date": "2026-05-01T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"RDL","sets":[{"weight":"100","reps":"8"}]},
+        {"exerciseName":"Bench","sets":[{"weight":"70","reps":"6"}]},
+        {"exerciseName":"DB Shoulder Press","sets":[{"weight":"24","reps":"9"}]},
+        {"exerciseName":"Pull-ups","sets":[{"weight":"0","reps":"6"}]}
+      ]
+    },
+    {
+      "id": "w11", "templateId": "t3", "templateName": "Legs Heavy",
+      "date": "2026-05-08T17:00:00.000Z",
+      "entries": [
+        {"exerciseName":"Romanian Deadlift","sets":[{"weight":"102.5","reps":"8"}]},
+        {"exerciseName":"Bench Press","sets":[{"weight":"72.5","reps":"6"}]}
+      ]
+    }
+  ],
+  "settings": {"pullupBodyweight": ""},
+  "meta": {
+    "lastManualBackupAt": "",
+    "lastSnapshotAt": "2026-05-08T17:01:00.000Z",
+    "lastMirrorAt": "2026-05-08T17:01:00.000Z",
+    "persistentGranted": false,
+    "persistentCheckedAt": "2026-05-01T16:59:00.000Z",
+    "protectionStartedAt": "2026-05-01T16:59:00.000Z"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "_comment": "Represents the IndexedDB el-supremo-safe-store 'state' object store's 'latest' record — the shape used by initDataProtection() to recover when localStorage['ironlog-v1'] is missing/empty.",
+  "createdAt": "2026-07-05T12:00:00.000Z",
+  "reason": "workout",
+  "data": {
+    "templates": [
+      {"id":"t1","name":"Push Heavy","exercises":[
+        {"id":"e1","name":"Bench Press","sets":4,"reps":"5–8"}
+      ]}
+    ],
+    "workouts": [
+      {
+        "id": "w30", "templateId": "t1", "templateName": "Push Heavy",
+        "date": "2026-07-05T11:55:00.000Z",
+        "entries": [
+          {"exerciseName":"Bench Press","sets":[{"weight":"82.5","reps":"5"}]}
+        ]
+      }
+    ],
+    "settings": {"pullupBodyweight": ""},
+    "meta": {
+      "lastManualBackupAt": "",
+      "lastSnapshotAt": "2026-07-05T12:00:00.000Z",
+      "lastMirrorAt": "2026-07-05T12:00:00.000Z",
+      "persistentGranted": true,
+      "persistentCheckedAt": "2026-07-05T11:50:00.000Z",
+      "protectionStartedAt": "2026-07-01T09:00:00.000Z"
+    }
+  }
+}
