@@ -6,6 +6,7 @@
 import type { AppData, Template, Workout } from "../app/types";
 import { EXERCISE_LIBRARY, resolveLibraryId, type ExerciseLibraryEntry } from "../database/exerciseLibrary";
 import { standardizeExerciseName } from "../workouts/aliases";
+import { slugify } from "../workouts/slug";
 import { toNum } from "../app/format";
 
 export interface ExerciseRow {
@@ -100,19 +101,6 @@ export interface MigratedRows {
 }
 
 export const MIGRATED_PLAN_ID = "plan_legacy_programme";
-
-/** Deterministic, collision-tolerant slug — mirrors v15's existing
- *  case-insensitive exercise-name identity (allPRs/lastSets both compare
- *  names via .toLowerCase()), so two spellings that were already "the same
- *  exercise" under v15 stay the same exercise here. */
-function slugify(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return slug || "exercise";
-}
 
 function customExerciseId(canonicalName: string): string {
   return "custom_" + slugify(canonicalName);
