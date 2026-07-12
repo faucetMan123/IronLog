@@ -15,6 +15,8 @@ import * as mentorQuestionnaire from "../screens/mentorQuestionnaire";
 import * as mentorPreview from "../screens/mentorPreview";
 import * as starterPlanPicker from "../screens/starterPlanPicker";
 import * as privacy from "../screens/privacy";
+import { syncBannerForPlacement } from "../ads/adMobAdapter";
+import { placementForTab } from "../ads/placements";
 
 export interface NavItem {
   id: TabId;
@@ -159,6 +161,8 @@ export async function render(): Promise<void> {
   else if (tab === "starterPlanPicker") starterPlanPicker.mount(content);
   else if (tab === "privacy") await privacy.mount(content);
   content.scrollTop = 0;
+
+  void syncBannerForPlacement(placementForTab(tab, progressMode, Boolean(getSession())));
 }
 
 export function initRouter(initialTab: TabId = "home"): void {

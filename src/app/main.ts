@@ -7,6 +7,7 @@ import { getDb } from "../database/db";
 import { isOnboardingCompleted } from "../database/settingsRepo";
 import { hasAnyPlans } from "../database/plansRepo";
 import { initHardwareBackButton, initStatusBar, hideSplashScreen } from "./native";
+import { initConsent } from "../ads/consent";
 import type { TabId } from "./types";
 
 function initBackButton(): void {
@@ -84,6 +85,7 @@ async function boot(): Promise<void> {
   await initDataProtection(() => {});
   await runMigrationStep();
   const initialTab = await determineInitialTab();
+  void initConsent(); // never blocks boot — ad placements simply stay hidden until consent resolves
   initRouter(initialTab);
   initServiceWorker();
   await hideSplashScreen();

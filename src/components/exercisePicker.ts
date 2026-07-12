@@ -33,8 +33,15 @@ export function pickExercise(title = "Add exercise"): Promise<PickedExercise | n
     };
     wrap.addEventListener("click", onWrapClick);
 
+    let latestRequestId = 0;
     async function renderResults(query: string) {
+      const requestId = ++latestRequestId;
       const results: ExerciseRecord[] = await searchExercises(query);
+      // A newer query was issued while this one was in flight (e.g. the
+      // initial empty-query load racing a fast typed search) — its
+      // results are stale, discard them rather than clobbering the
+      // correct, more recent results.
+      if (requestId !== latestRequestId) return;
       const list = modal!.querySelector("#exPickerResults");
       if (!list) return;
       if (!results.length) {

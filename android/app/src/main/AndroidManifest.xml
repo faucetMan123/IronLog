@@ -30,6 +30,16 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Required by @capacitor-community/admob's native AdMob SDK.
+             ${admobAppId} is a Gradle manifest placeholder (see
+             app/build.gradle) resolved from the ADMOB_APP_ID environment
+             variable at build time, falling back to Google's public test
+             app ID — the production ID is never hardcoded in the repo,
+             matching src/ads/adConfig.ts's approach on the JS side. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
     </application>
 
     <!-- Permissions -->

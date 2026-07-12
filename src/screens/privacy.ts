@@ -1,6 +1,8 @@
 import { toast } from "../app/format";
 import { modalConfirm, modalPrompt } from "../components/modal";
 import { eraseAllData, getNonPersonalisedAds, setNonPersonalisedAds } from "../database/settingsRepo";
+import { openPrivacyOptionsForm } from "../ads/consent";
+import { Capacitor } from "@capacitor/core";
 import { buildBackup } from "../exports/backup";
 import { downloadFile } from "../exports/export";
 import { CURRENT_SCHEMA_VERSION } from "../database/schema";
@@ -52,6 +54,7 @@ export async function mount(container: HTMLElement): Promise<void> {
         <button class="toggle ${nonPersonalised ? "active" : ""}" id="nonPersonalisedBtn">Non-personalised ads</button>
         <button class="toggle ${!nonPersonalised ? "active" : ""}" id="personalisedBtn">Personalised ads</button>
       </div>
+      ${Capacitor.isNativePlatform() ? '<button class="btn btn-ghost" id="privacyChoicesBtn" style="margin-top:10px">Privacy choices (consent form)</button>' : ""}
     </div>
 
     <div class="settings-card card">
@@ -73,4 +76,5 @@ export async function mount(container: HTMLElement): Promise<void> {
   container.querySelector("#eraseBtn")?.addEventListener("click", () => void handleErase());
   container.querySelector("#nonPersonalisedBtn")?.addEventListener("click", () => void setNonPersonalisedAds(true).then(() => mount(container)));
   container.querySelector("#personalisedBtn")?.addEventListener("click", () => void setNonPersonalisedAds(false).then(() => mount(container)));
+  container.querySelector("#privacyChoicesBtn")?.addEventListener("click", () => void openPrivacyOptionsForm());
 }
