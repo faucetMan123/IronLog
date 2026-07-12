@@ -16,10 +16,13 @@ minimal cases.
   as `standardizeExerciseName()` would encounter them before its lowercase-key
   lookup runs — exercises `normalizeData()` on load in v15, and the ID
   resolution in the new migration.
-- `custom-exercise.json` — includes an exercise name (`"Farmer Carry"`) that
-  is not in the curated 80-120 exercise library and not in
-  `EXERCISE_NAME_ALIASES`, so it must resolve to a generated custom exercise
-  id rather than being dropped or mis-merged.
+- `custom-exercise.json` — includes an exercise name (`"Farmer Carry"`) added
+  mid-session via `addSessionExercise()` rather than coming from a template.
+  Farmer Carry is present in the curated library (see
+  `src/database/exerciseLibrary.ts`), so this fixture verifies the "session
+  exercise not on any template" path resolves correctly rather than being
+  dropped; a separate migration test covers a name with no library/alias
+  match at all, which must fall back to a generated custom exercise id.
 - `idb-mirror-only.json` — represents the IndexedDB `state` store's `latest`
   record contents (`{createdAt, reason, data}`) for the scenario where
   `localStorage["ironlog-v1"]` is empty/missing but the IndexedDB mirror has
