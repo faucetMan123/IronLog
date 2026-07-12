@@ -1,21 +1,31 @@
-import { store } from "../app/store";
 import { esc } from "../app/format";
 import { ICON_SESS, ICON_CHART } from "../components/icons";
-import {
-  exerciseNames,
-  chartContextCounts,
-  chartRowsFor,
-  workoutVolumeRows,
-  drawLine,
-  type ChartContext,
-  type ProgressRange,
-} from "../progress/charts";
+import { drawLine } from "../progress/charts";
+import { dayVolumeRows, exerciseProgressRows, distinctPerformedExerciseIds, hasAnySessions, type ExerciseProgressRow, type DayVolumeRow } from "../database/sessionsRepo";
+import { listPlans, listWorkoutDays, type WorkoutDayRecord } from "../database/plansRepo";
 import { getProgressMode, openProgressMode } from "../app/router";
 
-let chartExercise: string | null = null;
-let chartContext: ChartContext = "heavy";
-let progressTemplate: string | null = null;
+export type ProgressRange = "1m" | "6m" | "1y" | "all";
+
+let selectedDayId: string | null = null;
+let selectedExerciseId: string | null = null;
 let progressRange: ProgressRange = "all";
+let allDays: WorkoutDayRecord[] = [];
+let allExercises: { exerciseId: string; exerciseName: string }[] = [];
+
+function rangeCutoff(range: ProgressRange): Date | null {
+  if (range === "all") return null;
+  const d = new Date();
+  if (range === "1m") d.setMonth(d.getMonth() - 1);
+  else if (range === "6m") d.setMonth(d.getMonth() - 6);
+  else if (range === "1y") d.setFullYear(d.getFullYear() - 1);
+  return d;
+}
+
+function filterByRange<T extends { isoDate: string }>(rows: T[], range: ProgressRange): T[] {
+  const cut = rangeCutoff(range);
+  return cut ? rows.filter((r) => new Date(r.isoDate) >= cut) : rows;
+}
 
 function rangeRow(): string {
   const opts: [ProgressRange, string][] = [
@@ -24,11 +34,7 @@ function rangeRow(): string {
     ["1y", "1 Year"],
     ["all", "All Time"],
   ];
-  return (
-    `<div class="context-row" id="rangeRow">` +
-    opts.map(([k, l]) => `<button class="context-btn ${progressRange === k ? "active" : ""}" data-range="${k}">${l}</button>`).join("") +
-    `</div>`
-  );
+  return `<div class="context-row" id="rangeRow">` + opts.map(([k, l]) => `<button class="context-btn ${progressRange === k ? "active" : ""}" data-range="${k}">${l}</button>`).join("") + `</div>`;
 }
 
 function wireRangeRow(container: HTMLElement, rerender: () => void): void {
@@ -40,9 +46,16 @@ function wireRangeRow(container: HTMLElement, rerender: () => void): void {
   });
 }
 
-export function mount(container: HTMLElement): void {
-  const rerender = () => mount(container);
-  if (!store.data.workouts.length) {
+async function loadDays(): Promise<WorkoutDayRecord[]> {
+  const plans = await listPlans(true);
+  const days: WorkoutDayRecord[] = [];
+  for (const p of plans) days.push(...(await listWorkoutDays(p.id)));
+  return days;
+}
+
+export async function mount(container: HTMLElement): Promise<void> {
+  const rerender = () => void mount(container);
+  if (!(await hasAnySessions())) {
     container.innerHTML = '<div class="empty" style="margin-top:14px">Log a couple of workouts and your<br>progress shows up here.</div>';
     return;
   }
@@ -55,7 +68,7 @@ export function mount(container: HTMLElement): void {
         <div class="es-ico">${ICON_SESS}</div>
         <div style="flex:1;text-align:left">
           <div class="display" style="font-size:17px">Workout Progress</div>
-          <div class="dimtext" style="margin-top:4px;line-height:1.45">Total volume per session for each of your six templates, over time.</div>
+          <div class="dimtext" style="margin-top:4px;line-height:1.45">Total volume per session for one of your workout days, over time.</div>
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--text-faint)"><path d="M9 5l7 7-7 7"/></svg>
       </button>
@@ -63,7 +76,7 @@ export function mount(container: HTMLElement): void {
         <div class="es-ico">${ICON_CHART}</div>
         <div style="flex:1;text-align:left">
           <div class="display" style="font-size:17px">Exercise Progress</div>
-          <div class="dimtext" style="margin-top:4px;line-height:1.45">Top weight and volume for a single lift, split by Heavy and Volume days.</div>
+          <div class="dimtext" style="margin-top:4px;line-height:1.45">Top weight and volume for a single lift, over time.</div>
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--text-faint)"><path d="M9 5l7 7-7 7"/></svg>
       </button>
@@ -75,59 +88,49 @@ export function mount(container: HTMLElement): void {
   }
 
   if (progressMode === "workout") {
-    if (!progressTemplate || !store.data.templates.some((t) => t.id === progressTemplate)) {
-      progressTemplate = store.data.templates[0]?.id ?? null;
-    }
-    let h = `<div class="chart-controls" style="margin-top:4px"><select id="tplSelect">`;
-    for (const t of store.data.templates) h += `<option value="${t.id}" ${t.id === progressTemplate ? "selected" : ""}>${esc(t.name)}</option>`;
+    allDays = await loadDays();
+    if (!selectedDayId || !allDays.some((d) => d.id === selectedDayId)) selectedDayId = allDays[0]?.id ?? null;
+    let h = `<div class="chart-controls" style="margin-top:4px"><select id="daySelect">`;
+    for (const d of allDays) h += `<option value="${d.id}" ${d.id === selectedDayId ? "selected" : ""}>${esc(d.name)}</option>`;
     h += `</select></div>`;
     h += rangeRow();
-    const rows = workoutVolumeRows(store.data, progressRange, progressTemplate!);
-    const best = rows.length ? Math.max(...rows.map((r) => r.vol)) : 0;
-    const latest = rows.length ? rows[rows.length - 1].vol : 0;
+    const rows: DayVolumeRow[] = selectedDayId ? filterByRange(await dayVolumeRows(selectedDayId), progressRange) : [];
+    const best = rows.length ? Math.max(...rows.map((r) => r.volume)) : 0;
+    const latest = rows.length ? rows[rows.length - 1].volume : 0;
     h += `<div class="chart-summary">
       <div class="mini"><div class="v mono">${rows.length}</div><div class="l">Sessions</div></div>
       <div class="mini"><div class="v mono">${best ? Math.round(best) : "—"}</div><div class="l">Best volume</div></div>
       <div class="mini"><div class="v mono">${latest ? Math.round(latest) : "—"}</div><div class="l">Latest</div></div>
     </div>`;
-    if (!rows.length) h += `<div class="empty">No sessions of this template in the selected period.</div>`;
-    else
-      h += `<div class="sectionlabel">Total session volume (kg × reps)</div>
-      <div class="card" style="padding:12px 8px 8px"><canvas class="chart" id="chartT"></canvas></div>`;
+    if (!rows.length) h += `<div class="empty">No sessions of this workout day in the selected period.</div>`;
+    else h += `<div class="sectionlabel">Total session volume (kg × reps)</div><div class="card" style="padding:12px 8px 8px"><canvas class="chart" id="chartT"></canvas></div>`;
     container.innerHTML = h;
     wireRangeRow(container, rerender);
-    container.querySelector<HTMLSelectElement>("#tplSelect")?.addEventListener("change", (e) => {
-      progressTemplate = (e.target as HTMLSelectElement).value;
+    container.querySelector<HTMLSelectElement>("#daySelect")?.addEventListener("change", (e) => {
+      selectedDayId = (e.target as HTMLSelectElement).value;
       rerender();
     });
-    requestAnimationFrame(() => {
-      const r = workoutVolumeRows(store.data, progressRange, progressTemplate!);
-      drawLine("chartT", r.map((x) => x.date), r.map((x) => x.vol), "#E02B35");
-    });
+    requestAnimationFrame(() => drawLine("chartT", rows.map((r) => r.date), rows.map((r) => r.volume), "#E02B35"));
     return;
   }
 
   // exercise progress
-  const names = exerciseNames(store.data);
-  if (!chartExercise || !names.includes(chartExercise)) chartExercise = names[0] ?? null;
-  const counts = chartContextCounts(store.data, progressRange, chartExercise);
+  allExercises = await distinctPerformedExerciseIds();
+  if (!selectedExerciseId || !allExercises.some((e) => e.exerciseId === selectedExerciseId)) selectedExerciseId = allExercises[0]?.exerciseId ?? null;
   let h = `<div class="chart-controls" style="margin-top:4px"><select id="exSelect">`;
-  for (const n of names) h += `<option ${n === chartExercise ? "selected" : ""}>${esc(n)}</option>`;
+  for (const e of allExercises) h += `<option value="${e.exerciseId}" ${e.exerciseId === selectedExerciseId ? "selected" : ""}>${esc(e.exerciseName)}</option>`;
   h += `</select></div>`;
-  h += `<div class="context-row ctx2">
-    <button class="context-btn ${chartContext === "heavy" ? "active" : ""}" data-ctx="heavy">Heavy days <span class="mono">${counts.heavy}</span></button>
-    <button class="context-btn ${chartContext === "volume" ? "active" : ""}" data-ctx="volume">Volume days <span class="mono">${counts.volume}</span></button>
-  </div>`;
   h += rangeRow();
-  const rows = chartExercise ? chartRowsFor(store.data, progressRange, chartExercise, chartContext) : [];
-  const bestTop = rows.length ? Math.max(...rows.map((r) => r.top)) : 0;
-  const bestVol = rows.length ? Math.max(...rows.map((r) => r.vol)) : 0;
+  const rows: ExerciseProgressRow[] = selectedExerciseId ? filterByRange(await exerciseProgressRows(selectedExerciseId), progressRange) : [];
+  const bestTop = rows.length ? Math.max(...rows.map((r) => r.topWeight)) : 0;
+  const bestVol = rows.length ? Math.max(...rows.map((r) => r.volume)) : 0;
   h += `<div class="chart-summary">
     <div class="mini"><div class="v mono">${rows.length}</div><div class="l">Sessions</div></div>
     <div class="mini"><div class="v mono">${bestTop ? Math.round(bestTop * 10) / 10 : "—"}</div><div class="l">Best kg</div></div>
     <div class="mini"><div class="v mono">${bestVol ? Math.round(bestVol) : "—"}</div><div class="l">Best volume</div></div>
   </div>`;
-  if (!rows.length) h += `<div class="empty">No ${chartContext} sessions for ${esc(chartExercise ?? "")} in this period.</div>`;
+  const exName = allExercises.find((e) => e.exerciseId === selectedExerciseId)?.exerciseName ?? "";
+  if (!rows.length) h += `<div class="empty">No sessions for ${esc(exName)} in this period.</div>`;
   else
     h += `<div class="sectionlabel">Top set weight (kg)</div>
     <div class="card" style="padding:12px 8px 8px"><canvas class="chart" id="chartW"></canvas></div>
@@ -136,29 +139,20 @@ export function mount(container: HTMLElement): void {
   container.innerHTML = h;
   wireRangeRow(container, rerender);
   container.querySelector<HTMLSelectElement>("#exSelect")?.addEventListener("change", (e) => {
-    chartExercise = (e.target as HTMLSelectElement).value;
+    selectedExerciseId = (e.target as HTMLSelectElement).value;
     rerender();
   });
-  container.querySelectorAll<HTMLButtonElement>("[data-ctx]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      chartContext = btn.dataset.ctx as ChartContext;
-      rerender();
-    });
-  });
   requestAnimationFrame(() => {
-    const r = chartExercise ? chartRowsFor(store.data, progressRange, chartExercise, chartContext) : [];
-    drawLine("chartW", r.map((x) => x.date), r.map((x) => x.top), "#E02B35");
-    drawLine("chartV", r.map((x) => x.date), r.map((x) => x.vol), "#4D8BF0");
+    drawLine("chartW", rows.map((r) => r.date), rows.map((r) => r.topWeight), "#E02B35");
+    drawLine("chartV", rows.map((r) => r.date), rows.map((r) => r.volume), "#4D8BF0");
   });
 }
 
+let resizeDebounce: ReturnType<typeof setTimeout> | undefined;
 export function redrawOnResize(): void {
-  if (getProgressMode() === "workout") {
-    const r = progressTemplate ? workoutVolumeRows(store.data, progressRange, progressTemplate) : [];
-    drawLine("chartT", r.map((x) => x.date), r.map((x) => x.vol), "#E02B35");
-  } else if (getProgressMode() === "exercise") {
-    const r = chartExercise ? chartRowsFor(store.data, progressRange, chartExercise, chartContext) : [];
-    drawLine("chartW", r.map((x) => x.date), r.map((x) => x.top), "#E02B35");
-    drawLine("chartV", r.map((x) => x.date), r.map((x) => x.vol), "#4D8BF0");
-  }
+  clearTimeout(resizeDebounce);
+  resizeDebounce = setTimeout(() => {
+    const content = document.getElementById("content");
+    if (content) void mount(content);
+  }, 200);
 }

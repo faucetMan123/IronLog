@@ -293,3 +293,9 @@ export async function reorderDayExercises(orderedIds: string[]): Promise<void> {
   }
   await persistWebStore();
 }
+
+export async function hasAnyPlans(): Promise<boolean> {
+  const db = await getDb();
+  const res = await db.query("SELECT COUNT(*) as c FROM plans");
+  return ((res.values?.[0] as { c: number } | undefined)?.c ?? 0) > 0;
+}

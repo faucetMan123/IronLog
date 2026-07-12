@@ -1,9 +1,12 @@
 import "../styles/global.css";
 import { initModal } from "../components/modal";
-import { initRouter, render } from "./router";
+import { initRouter } from "./router";
 import { initDataProtection, hasLegacyEvidence } from "./store";
 import { runV15Migration } from "../migrations/runMigration";
 import { getDb } from "../database/db";
+import { isOnboardingCompleted } from "../database/settingsRepo";
+import { hasAnyPlans } from "../database/plansRepo";
+import type { TabId } from "./types";
 
 function initBackButton(): void {
   document.getElementById("backBtn")?.addEventListener("click", () => history.back());
@@ -37,13 +40,11 @@ function initServiceWorker(): void {
   });
 }
 
-// Runs the one-time v15 -> SQLite migration in the background, after any
-// legacy-storage recovery has settled. Non-blocking and non-visible: no
-// screen reads from SQLite yet (that lands in Phase 5), so a failure here
-// must never break the legacy-storage-backed UI that's already on screen.
-// The status is recorded on <body data-migration-status> for diagnostics
-// and for the Playwright integration test to observe.
-async function initSqliteMigration(): Promise<void> {
+// Runs the one-time v15 -> SQLite migration, after legacy-storage recovery
+// has settled and before the first real screen renders — the initial tab
+// (onboarding vs. home) depends on its outcome (did it seed a plan for a
+// returning user, or leave a blank slate for a new one).
+async function runMigrationStep(): Promise<void> {
   try {
     const outcome = await runV15Migration(await hasLegacyEvidence());
     document.body.dataset.migrationStatus = outcome.status;
@@ -54,6 +55,11 @@ async function initSqliteMigration(): Promise<void> {
     document.body.dataset.migrationStatus = "error";
     console.error("v15 migration threw", err);
   }
+}
+
+async function determineInitialTab(): Promise<TabId> {
+  const [onboarded, hasPlans] = await Promise.all([isOnboardingCompleted(), hasAnyPlans()]);
+  return onboarded || hasPlans ? "home" : "onboarding";
 }
 
 // Local-only diagnostic hook (no network, no telemetry) so the Playwright
@@ -67,8 +73,16 @@ declare global {
 }
 window.__elSupremoDebug = { getDb };
 
-initModal();
-initBackButton();
-initRouter();
-void initDataProtection(render).then(() => initSqliteMigration());
-initServiceWorker();
+async function boot(): Promise<void> {
+  initModal();
+  initBackButton();
+  // No screen has rendered yet, so the recovery callback has nothing to
+  // refresh — initRouter()'s first render below already reflects it.
+  await initDataProtection(() => {});
+  await runMigrationStep();
+  const initialTab = await determineInitialTab();
+  initRouter(initialTab);
+  initServiceWorker();
+}
+
+void boot();

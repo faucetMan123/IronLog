@@ -1,14 +1,26 @@
-import { store, save, createSnapshot, recoverProtectedCopy } from "../app/store";
 import { esc, toast } from "../app/format";
-import { buildText, buildTSV, downloadFile } from "../exports/export";
-import { modalConfirm } from "../components/modal";
-import { normalizeData } from "../database/legacyStorage";
-import type { AppData } from "../app/types";
+import { buildText, buildCSV, downloadFile } from "../exports/export";
+import { buildBackup, readBackupFile, APP_VERSION } from "../exports/backup";
+import { CURRENT_SCHEMA_VERSION } from "../database/schema";
+import { listHistory, getSessionDetail, type SessionDetail } from "../database/sessionsRepo";
+import { getLastManualBackupAt, setLastManualBackupAt, completedSessionCountSinceLastBackup } from "../database/settingsRepo";
+import { modalChoice } from "../components/modal";
+import { go } from "../app/router";
 
-let exportFormat: "text" | "tsv" = "text";
+let exportFormat: "text" | "csv" = "text";
 
-function copyExport(box: HTMLTextAreaElement): void {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
+async function loadAllSessionDetails(): Promise<SessionDetail[]> {
+  const history = await listHistory();
+  const details: SessionDetail[] = [];
+  for (const h of history) {
+    const d = await getSessionDetail(h.id);
+    if (d) details.push(d);
+  }
+  return details;
+}
+
+function copyText(box: HTMLTextAreaElement): void {
+  if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(box.value).then(
       () => toast("Copied!"),
       () => fallbackCopy(box)
@@ -29,59 +41,70 @@ function fallbackCopy(box: HTMLTextAreaElement): void {
   }
 }
 
-function downloadExport(): void {
-  downloadFile(
-    exportFormat === "text" ? "workout-log.txt" : "workout-log.tsv",
-    exportFormat === "text" ? buildText(store.data) : buildTSV(store.data),
-    "text/plain"
-  );
+async function handleDownloadBackup(): Promise<void> {
+  const backup = await buildBackup();
+  downloadFile(`elsupremo-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2), "application/json");
+  await setLastManualBackupAt(new Date().toISOString());
+  toast("Backup downloaded");
 }
 
-function downloadBackup(): void {
-  store.data.meta.lastManualBackupAt = new Date().toISOString();
-  save("manual-backup");
-  void createSnapshot("manual-backup");
-  downloadFile("elsupremo-backup-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(store.data, null, 2), "application/json");
-}
-
-function restoreBackup(input: HTMLInputElement, rerender: () => void): void {
-  const f = input.files?.[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = async () => {
-    try {
-      const d = JSON.parse(String(r.result)) as Partial<AppData>;
-      if (!d || !Array.isArray(d.templates) || !Array.isArray(d.workouts)) throw new Error("bad shape");
-      const incoming = normalizeData(d);
-      const ok = await modalConfirm(
-        "Restore backup?",
-        `${incoming.workouts.length} workouts and ${incoming.templates.length} templates will replace the data currently on this phone.`,
-        "Restore"
-      );
-      if (!ok) return;
-      await createSnapshot("before-restore");
-      store.data = incoming;
-      save("restore");
-      await createSnapshot("restore");
-      rerender();
-      toast("Backup restored");
-    } catch {
-      toast("That file isn't a valid backup");
-    }
-  };
-  r.readAsText(f);
+async function handleRestore(input: HTMLInputElement, rerender: () => void): Promise<void> {
+  const file = input.files?.[0];
+  if (!file) return;
+  const text = await file.text();
   input.value = "";
+  let preview;
+  try {
+    preview = await readBackupFile(text);
+  } catch (err) {
+    toast(err instanceof Error ? err.message : "That file isn't a valid backup");
+    return;
+  }
+  if (preview.issues.length) {
+    toast("Backup failed validation — not restored");
+    return;
+  }
+  const countsLine = Object.entries(preview.counts)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => `${v} ${k.replace(/_/g, " ")}`)
+    .join(", ");
+  const choice = await modalChoice(
+    preview.kind === "legacy_v15" ? "Import legacy backup?" : "Restore backup?",
+    `Found: ${countsLine || "no records"}. Merge keeps your current data and adds anything new; Replace erases current data first.`,
+    [
+      { label: "Merge", value: "merge" },
+      { label: "Replace", value: "replace", danger: true },
+    ]
+  );
+  if (choice !== "merge" && choice !== "replace") return;
+
+  // Pre-restore automatic backup, so a bad restore is always recoverable.
+  const preRestoreBackup = await buildBackup();
+  downloadFile(`elsupremo-pre-restore-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(preRestoreBackup, null, 2), "application/json");
+
+  await preview.apply(choice);
+  rerender();
+  toast(choice === "replace" ? "Backup restored" : "Backup merged");
 }
 
-export function mount(container: HTMLElement): void {
-  const rerender = () => mount(container);
-  const has = store.data.workouts.length > 0;
-  const content = has ? (exportFormat === "text" ? buildText(store.data) : buildTSV(store.data)) : "";
+export async function mount(container: HTMLElement): Promise<void> {
+  const rerender = () => void mount(container);
+  const sessions = await loadAllSessionDetails();
+  const has = sessions.length > 0;
+  const content = has ? (exportFormat === "text" ? buildText(sessions) : buildCSV(sessions)) : "";
+  const lastBackup = await getLastManualBackupAt();
+  const sessionsSinceBackup = await completedSessionCountSinceLastBackup();
+  const daysSinceBackup = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000) : Infinity;
+  const showReminder = sessionsSinceBackup >= 10 || daysSinceBackup >= 14;
+
   let h = '<div style="margin-top:4px">';
+  if (showReminder) {
+    h += `<div class="pr-note" style="margin-bottom:14px">You haven't backed up in a while (${sessionsSinceBackup} sessions${lastBackup ? `, ${daysSinceBackup} days` : ""} since last manual backup). Consider downloading a backup below.</div>`;
+  }
   if (has) {
     h += `<div class="togglerow">
       <button class="toggle ${exportFormat === "text" ? "active" : ""}" data-fmt="text">Readable text</button>
-      <button class="toggle ${exportFormat === "tsv" ? "active" : ""}" data-fmt="tsv">Spreadsheet</button></div>
+      <button class="toggle ${exportFormat === "csv" ? "active" : ""}" data-fmt="csv">Spreadsheet (CSV)</button></div>
     <div class="flexrow" style="margin-bottom:12px">
       <button class="btn" id="copyBtn">Copy</button>
       <button class="btn" id="downloadBtn">Download</button></div>
@@ -91,26 +114,31 @@ export function mount(container: HTMLElement): void {
   }
   h += `<div class="sectionlabel">Backup</div>
     <div class="card" style="display:flex;flex-direction:column;gap:11px">
-      <div class="dimtext" style="line-height:1.55">Your data is saved on this phone and automatically backed up in the background after every workout. For extra safety, download a backup file occasionally and keep it somewhere else.</div>
+      <div class="dimtext" style="line-height:1.55">Your data is stored on this device only. Download a backup file regularly and keep it somewhere else — uninstalling the app may permanently remove locally stored workout history.</div>
+      <div class="dimtext mono" style="font-size:11.5px">Last manual backup: ${lastBackup ? new Date(lastBackup).toLocaleString() : "Never"}</div>
       <button class="btn" id="downloadBackupBtn">Download backup file</button>
       <label class="btn" style="cursor:pointer">Restore from backup file
         <input type="file" accept=".json,application/json" style="display:none" id="restoreInput"></label>
-      <button class="btn btn-ghost" id="recoverBtn">Restore last automatic backup</button>
-    </div></div>`;
+      <div class="dimtext mono" style="font-size:10.5px;margin-top:4px">Schema v${CURRENT_SCHEMA_VERSION} · App v${APP_VERSION}</div>
+    </div>
+    <button class="btn btn-ghost" id="privacyBtn" style="margin-top:13px">Privacy Centre</button>
+    </div>`;
   container.innerHTML = h;
 
   container.querySelectorAll<HTMLButtonElement>("[data-fmt]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      exportFormat = btn.dataset.fmt as "text" | "tsv";
+      exportFormat = btn.dataset.fmt as "text" | "csv";
       rerender();
     });
   });
   container.querySelector("#copyBtn")?.addEventListener("click", () => {
     const box = container.querySelector<HTMLTextAreaElement>("#exportBox");
-    if (box) copyExport(box);
+    if (box) copyText(box);
   });
-  container.querySelector("#downloadBtn")?.addEventListener("click", downloadExport);
-  container.querySelector("#downloadBackupBtn")?.addEventListener("click", downloadBackup);
-  container.querySelector("#restoreInput")?.addEventListener("change", (e) => restoreBackup(e.target as HTMLInputElement, rerender));
-  container.querySelector("#recoverBtn")?.addEventListener("click", () => recoverProtectedCopy(rerender));
+  container.querySelector("#downloadBtn")?.addEventListener("click", () => {
+    downloadFile(exportFormat === "text" ? "workout-log.txt" : "workout-log.csv", exportFormat === "text" ? buildText(sessions) : buildCSV(sessions), "text/plain");
+  });
+  container.querySelector("#downloadBackupBtn")?.addEventListener("click", () => void handleDownloadBackup().then(rerender));
+  container.querySelector("#restoreInput")?.addEventListener("change", (e) => void handleRestore(e.target as HTMLInputElement, rerender));
+  container.querySelector("#privacyBtn")?.addEventListener("click", () => go("privacy"));
 }

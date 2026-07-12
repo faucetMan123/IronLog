@@ -1,27 +1,27 @@
-import type { AppData } from "../app/types";
 import { fmtDT, fmtDate } from "../app/format";
+import type { SessionDetail } from "../database/sessionsRepo";
 
-export function buildText(data: AppData): string {
-  const sorted = [...data.workouts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+export function buildText(sessions: SessionDetail[]): string {
+  const sorted = [...sessions].sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
   let out = `El Supremo Export — ${sorted.length} sessions — generated ${new Date().toLocaleString()}\n` + "=".repeat(60) + "\n\n";
-  for (const w of sorted) {
-    out += `${fmtDT(w.date)} — ${w.templateName}\n`;
-    for (const e of w.entries) {
-      out += `  - ${e.exerciseName}: ${e.sets.map((s) => `${s.weight}kg x ${s.reps}`).join(", ")}\n`;
+  for (const s of sorted) {
+    out += `${fmtDT(s.completedAt)} — ${s.templateName}\n`;
+    for (const e of s.exercises) {
+      out += `  - ${e.exerciseName}: ${e.sets.map((set) => `${set.weight}kg x ${set.reps}`).join(", ")}\n`;
     }
     out += "\n";
   }
   return out;
 }
 
-export function buildTSV(data: AppData): string {
-  let out = "Date\tTemplate\tExercise\tSet\tWeight(kg)\tReps\n";
-  [...data.workouts]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .forEach((w) => {
-      w.entries.forEach((e) =>
-        e.sets.forEach((s, i) => {
-          out += `${fmtDate(w.date)}\t${w.templateName}\t${e.exerciseName}\t${i + 1}\t${s.weight}\t${s.reps}\n`;
+export function buildCSV(sessions: SessionDetail[]): string {
+  let out = "Date,Template,Exercise,Set,Weight(kg),Reps\n";
+  [...sessions]
+    .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime())
+    .forEach((s) => {
+      s.exercises.forEach((e) =>
+        e.sets.forEach((set, i) => {
+          out += `${fmtDate(s.completedAt)},"${s.templateName}","${e.exerciseName}",${i + 1},${set.weight},${set.reps}\n`;
         })
       );
     });

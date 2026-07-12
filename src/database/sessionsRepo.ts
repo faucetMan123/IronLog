@@ -15,6 +15,9 @@ export interface DraftExercise {
   target: string;
   notes: string;
   sets: DraftSet[];
+  minReps?: number | null;
+  maxReps?: number | null;
+  weightIncrement?: number | null;
 }
 export interface WorkoutDraft {
   id: string;
@@ -303,4 +306,31 @@ export async function distinctPerformedExerciseIds(): Promise<{ exerciseId: stri
     `SELECT DISTINCT pe.exercise_id as exercise_id, pe.exercise_name as exercise_name FROM performed_exercises pe ORDER BY pe.exercise_name ASC`
   );
   return ((res.values ?? []) as { exercise_id: string; exercise_name: string }[]).map((r) => ({ exerciseId: r.exercise_id, exerciseName: r.exercise_name }));
+}
+
+export interface RangeStats {
+  sessions: number;
+  sets: number;
+}
+
+export async function statsForRange(startIso: string | null): Promise<RangeStats> {
+  const db = await getDb();
+  const sessionsRes = await db.query(`SELECT COUNT(*) as c FROM workout_sessions ${startIso ? "WHERE completed_at >= ?" : ""}`, startIso ? [startIso] : []);
+  const setsRes = await db.query(
+    `SELECT COUNT(*) as c FROM performed_sets ps
+     JOIN performed_exercises pe ON pe.id = ps.performed_exercise_id
+     JOIN workout_sessions ws ON ws.id = pe.workout_session_id
+     ${startIso ? "WHERE ws.completed_at >= ?" : ""}`,
+    startIso ? [startIso] : []
+  );
+  return {
+    sessions: (sessionsRes.values?.[0] as { c: number } | undefined)?.c ?? 0,
+    sets: (setsRes.values?.[0] as { c: number } | undefined)?.c ?? 0,
+  };
+}
+
+export async function hasAnySessions(): Promise<boolean> {
+  const db = await getDb();
+  const res = await db.query("SELECT COUNT(*) as c FROM workout_sessions");
+  return ((res.values?.[0] as { c: number } | undefined)?.c ?? 0) > 0;
 }

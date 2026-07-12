@@ -1,11 +1,11 @@
-import type { Session } from "./types";
+import type { WorkoutDraft } from "../database/sessionsRepo";
 
-let current: Session | null = null;
+let current: WorkoutDraft | null = null;
 
-export function getSession(): Session | null {
+export function getSession(): WorkoutDraft | null {
   return current;
 }
 
-export function setSession(s: Session | null): void {
+export function setSession(s: WorkoutDraft | null): void {
   current = s;
 }

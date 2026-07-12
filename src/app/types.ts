@@ -49,33 +49,26 @@ export interface AppData {
   meta: AppMeta;
 }
 
-// ---- active (unsaved) workout session ----
-export interface SessionEntry {
-  exerciseName: string;
-  target: string;
-  repHint: string;
-  sets: SetEntry[];
-}
-
-export interface Session {
-  templateId: string;
-  templateName: string;
-  entries: SessionEntry[];
-}
-
 export type TabId =
   | "home"
-  | "templates"
+  | "startWorkout"
   | "session"
   | "sheet"
   | "prs"
   | "charts"
   | "export"
-  | "edit";
+  | "plans"
+  | "planDetail"
+  | "onboarding"
+  | "mentorQuestionnaire"
+  | "mentorPreview"
+  | "starterPlanPicker"
+  | "privacy";
 
 export interface NavHistoryState {
   tab: TabId;
   mode?: ProgressMode;
+  params?: Record<string, string>;
 }
 
 export type ProgressMode = "workout" | "exercise" | null;
